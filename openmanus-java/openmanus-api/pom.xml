@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.github.myuser.openmanusjava</groupId>
+        <artifactId>openmanus-java-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+    <artifactId>openmanus-api</artifactId>
+    <name>OpenManus Java - API</name>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId> <!-- For @RestController, DTOs, etc. -->
+        </dependency>
+        <dependency>
+            <groupId>io.github.myuser.openmanusjava</groupId>
+            <artifactId>openmanus-core</artifactId> <!-- API depends on core for DTOs or service interfaces if not separated -->
+            <version>${project.version}</version>
+            <scope>compile</scope> <!-- Or provided if core only has interfaces used by API -->
+        </dependency>
+         <dependency> <!-- For @Valid on DTOs -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+    </dependencies>
+</project>
