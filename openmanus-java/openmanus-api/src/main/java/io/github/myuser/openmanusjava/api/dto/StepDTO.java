@@ -23,7 +23,7 @@ public class StepDTO {
         this.result = result;
         this.sequenceOrder = sequenceOrder;
     }
-    
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getDescription() { return description; }

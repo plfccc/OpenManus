@@ -854,7 +854,7 @@ This provides a foundation for browser-based interactions. The specific actions 
 
                 String containerId = containerCmd.exec().getId();
                 // Assuming ToolExecutionResult has an internal Map<String, Object> attributes
-                ToolExecutionResult toolResult = new ToolExecutionResult(); 
+                ToolExecutionResult toolResult = new ToolExecutionResult();
 
                 try {
                     dockerClient.startContainerCmd(containerId).exec();
@@ -884,7 +884,7 @@ This provides a foundation for browser-based interactions. The specific actions 
                     if (exitCode == 0) {
                         toolResult.setStatus("SUCCESS");
                         // Example for primary output, could be stdout or a specific artifact
-                        toolResult.setOutput(stdout.toString()); 
+                        toolResult.setOutput(stdout.toString());
                         // Collect artifacts from hostTempDir/output if any
                         // toolResult.addAttribute("artifacts", collectArtifacts(hostTempDir.resolve("output")));
                     } else {
@@ -1148,7 +1148,7 @@ Proper configuration management is key for flexibility, security, and maintainab
                 // log.error("Tool execution failed:", ex);
                 return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
             }
-            
+
             @ExceptionHandler(LlmInteractionException.class) // Custom from LLM integration
             public ResponseEntity<ErrorResponse> handleLlmInteractionException(LlmInteractionException ex, WebRequest request) {
                 ErrorResponse errorResponse = new ErrorResponse(
@@ -1582,7 +1582,7 @@ By following these logging norms, the application will be easier to monitor, tro
                   - SPRING_DATASOURCE_USERNAME=user
                   - SPRING_DATASOURCE_PASSWORD=secret
                   # For CodeExecutionTool with Docker-in-Docker (if needed and security implications understood)
-                  # - DOCKER_HOST=tcp://docker-in-docker:2375 
+                  # - DOCKER_HOST=tcp://docker-in-docker:2375
                 depends_on:
                   db:
                     condition: service_healthy # Wait for DB to be healthy

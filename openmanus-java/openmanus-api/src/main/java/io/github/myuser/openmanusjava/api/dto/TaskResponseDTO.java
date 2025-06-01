@@ -28,7 +28,7 @@ public class TaskResponseDTO {
         this.plannedSteps = plannedSteps;
         this.finalResult = finalResult;
     }
-    
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getDescription() { return description; }

@@ -37,20 +37,20 @@ public class TaskController {
         try {
             Task processedTask = taskOrchestrationService.processNewTask(taskRequestDTO);
             TaskResponseDTO response = mapTaskToTaskResponseDTO(processedTask);
-            
+
             URI location = ServletUriComponentsBuilder
                     .fromCurrentRequest()
                     .path("/{id}")
                     .buildAndExpand(processedTask.getId())
                     .toUri();
-            
+
             return ResponseEntity.created(location).body(response);
 
-        } catch (RuntimeException e) { 
+        } catch (RuntimeException e) {
             logger.error("Error processing task: {}", e.getMessage(), e);
             // This should be handled by GlobalExceptionHandler eventually
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                 .body(null); 
+                                 .body(null);
         }
     }
 
@@ -89,7 +89,7 @@ public class TaskController {
             step.getId(),
             step.getDescription(),
             step.getToolName(),
-            step.getParameters(), 
+            step.getParameters(),
             step.getStatus() != null ? step.getStatus().name() : null,
             step.getResult(),
             step.getSequenceOrder()

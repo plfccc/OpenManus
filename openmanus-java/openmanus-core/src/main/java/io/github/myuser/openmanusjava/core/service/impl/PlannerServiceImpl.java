@@ -46,7 +46,7 @@ public class PlannerServiceImpl implements PlannerService {
 
         LlmParameters params = new LlmParameters();
         // Potentially set a specific model for planning if LlmConfigProperties supports it
-        // params.setModel("planning-model"); 
+        // params.setModel("planning-model");
 
         try {
             String llmResponseJson = llmService.generateText(prompt, params);
@@ -73,11 +73,11 @@ public class PlannerServiceImpl implements PlannerService {
                     logger.error("Invalid step structure from LLM for task ID {}: {}", task.getId(), rawStep);
                     throw new PlanningException("LLM returned an invalid step structure (missing description or toolName).");
                 }
-                
+
                 Step step = new Step(task, description, toolName, stepParameters, sequenceOrder++);
                 plannedSteps.add(step);
             }
-            
+
             logger.info("Successfully created {} steps for task ID {}", plannedSteps.size(), task.getId());
             return plannedSteps;
 
