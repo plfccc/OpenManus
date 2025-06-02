@@ -139,7 +139,8 @@ public class CodeExecutionTool implements Tool {
 
             HostConfig hostConfig = new HostConfig()
                 .withBinds(new Bind(hostTempDir.toAbsolutePath().toString(), new Volume("/sandbox")))
-                .withNetworkDisabled(true); // Security: Disable network unless specifically required and configured
+                .withNetworkDisabled(true) // Security: Disable network unless specifically required and configured
+                .withReadonlyRootfs(true); // Security Hardening: Mount root FS as read-only
 
             CreateContainerResponse containerResponse = dockerClient.createContainerCmd(codeExecConfig.getPythonDockerImage())
                 .withHostConfig(hostConfig)

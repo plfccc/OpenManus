@@ -42,5 +42,44 @@
             <artifactId>commons-io</artifactId>
             <version>2.11.0</version> <!-- Check latest version -->
         </dependency>
+
+        <!-- Test Dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.19.7</version>
+            <scope>test</scope>
+        </dependency>
+         <dependency> <!-- For DockerClientFactory in test -->
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId> <!-- Though not strictly needed for just factory, good to have with testcontainers -->
+            <version>1.19.7</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

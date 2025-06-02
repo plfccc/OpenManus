@@ -63,6 +63,24 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins> <!-- Added this <plugins> section -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>9.2.0</version> <!-- Check for the latest version -->
+                <configuration>
+                    <failBuildOnCVSS>7</failBuildOnCVSS> <!-- Example: fail build if CVSS score >= 7 -->
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <!-- Use 'aggregate' in parent POM for multi-module project -->
+                            <goal>aggregate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
 </project>
