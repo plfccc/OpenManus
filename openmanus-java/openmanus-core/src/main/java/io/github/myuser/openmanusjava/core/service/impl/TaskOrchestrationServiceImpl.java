@@ -1,29 +1,30 @@
 package io.github.myuser.openmanusjava.core.service.impl;
 
+
 import io.github.myuser.openmanusjava.api.dto.TaskRequestDTO;
 import io.github.myuser.openmanusjava.core.exception.PlanningException;
+import io.github.myuser.openmanusjava.core.exception.ResourceNotFoundException;
 import io.github.myuser.openmanusjava.core.model.Step;
-import io.github.myuser.openmanusjava.core.model.StepStatus; // Import StepStatus
+import io.github.myuser.openmanusjava.core.model.StepStatus;
 import io.github.myuser.openmanusjava.core.model.Task;
 import io.github.myuser.openmanusjava.core.model.TaskStatus;
 import io.github.myuser.openmanusjava.core.repository.TaskRepository;
-// StepRepository might not be explicitly needed here if steps are cascaded from Task
-// import io.github.myuser.openmanusjava.core.repository.StepRepository;
 import io.github.myuser.openmanusjava.core.service.PlannerService;
 import io.github.myuser.openmanusjava.core.service.TaskOrchestrationService;
-import io.github.myuser.openmanusjava.tool.exception.ToolNotFoundException; // Import
-import io.github.myuser.openmanusjava.tool.service.ToolExecutorService;   // Import
-import io.github.myuser.openmanusjava.tool.spec.ToolExecutionException;  // Import
-import io.github.myuser.openmanusjava.tool.spec.ToolExecutionResult;    // Import
+import io.github.myuser.openmanusjava.tool.exception.ToolNotFoundException;
+import io.github.myuser.openmanusjava.tool.service.ToolExecutorService;
+import io.github.myuser.openmanusjava.tool.spec.ToolExecutionException;
+import io.github.myuser.openmanusjava.tool.spec.ToolExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.ArrayList;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map; // For step parameters if needed directly
+import java.util.Map;
 
 @Service
 public class TaskOrchestrationServiceImpl implements TaskOrchestrationService {
@@ -32,158 +33,208 @@ public class TaskOrchestrationServiceImpl implements TaskOrchestrationService {
 
     private final TaskRepository taskRepository;
     private final PlannerService plannerService;
-    private final ToolExecutorService toolExecutorService; // Added
+    private final ToolExecutorService toolExecutorService;
 
     @Autowired
     public TaskOrchestrationServiceImpl(TaskRepository taskRepository,
                                         PlannerService plannerService,
-                                        ToolExecutorService toolExecutorService) { // Added
+                                        ToolExecutorService toolExecutorService) {
         this.taskRepository = taskRepository;
         this.plannerService = plannerService;
-        this.toolExecutorService = toolExecutorService; // Added
-        logger.info("TaskOrchestrationServiceImpl initialized with repositories, planner, and tool executor.");
+        this.toolExecutorService = toolExecutorService;
     }
 
     @Override
     @Transactional
     public Task processNewTask(TaskRequestDTO request) {
-        logger.info("Processing new task request: {}", request.getDescription());
-
+        logger.info("Processing new task request for description: {}", request.getDescription());
         Task task = new Task(request.getDescription());
         task.setStatus(TaskStatus.PENDING);
-        Task savedTask = taskRepository.save(task);
-        logger.info("Saved initial task with ID: {}", savedTask.getId());
+        task.setCreatedAt(LocalDateTime.now());
+        task.setUpdatedAt(LocalDateTime.now());
+        Task savedTask = taskRepository.save(task); // Save initial task to get an ID
 
+        MDC.put("taskId", "task-" + savedTask.getId());
         try {
+            logger.info("Saved initial task. Now planning.");
             savedTask.setStatus(TaskStatus.PLANNING);
             taskRepository.save(savedTask);
 
             List<Step> plannedSteps = plannerService.createPlan(savedTask, request.getDescription());
-
-            savedTask.getPlannedSteps().clear();
-            for(Step step : plannedSteps) {
-                // Ensure task is set on step if not already done by planner (it is in current PlannerServiceImpl)
-                // step.setTask(savedTask);
-                savedTask.addStep(step);
+            savedTask.getPlannedSteps().clear(); // Clear any existing (should be none for new task)
+            for (Step step : plannedSteps) {
+                savedTask.addStep(step); // This should set the back-reference from step to task
             }
-            // Save task with planned steps (steps are PENDING & associated via cascade)
-            Task taskWithSteps = taskRepository.save(savedTask);
-            logger.info("Task ID {} planned with {} steps.", taskWithSteps.getId(), taskWithSteps.getPlannedSteps().size());
+            taskRepository.save(savedTask); // Save task with steps (cascading)
+            logger.info("Planning complete with {} steps.", savedTask.getPlannedSteps().size());
 
-            // --- Begin Step Execution ---
-            taskWithSteps.setStatus(TaskStatus.EXECUTING);
-            taskRepository.save(taskWithSteps);
-            logger.info("Task ID {} status set to EXECUTING.", taskWithSteps.getId());
+            savedTask.setStatus(TaskStatus.EXECUTING);
+            taskRepository.save(savedTask);
+            logger.info("Beginning step execution.");
 
-            boolean allStepsSucceeded = executePlannedSteps(taskWithSteps);
+            boolean allStepsSucceeded = executePlannedSteps(savedTask);
 
             if (allStepsSucceeded) {
-                taskWithSteps.setStatus(TaskStatus.COMPLETED);
-                // Potentially aggregate results from steps into task.finalResult here
-                // For now, just mark as completed.
-                taskWithSteps.setFinalResult("All steps completed successfully.");
-                logger.info("Task ID {} completed successfully.", taskWithSteps.getId());
+                savedTask.setStatus(TaskStatus.COMPLETED);
+                savedTask.setFinalResult("All steps completed successfully.");
+                savedTask.setCompletedAt(LocalDateTime.now());
+                logger.info("Task completed successfully.");
             } else {
-                taskWithSteps.setStatus(TaskStatus.FAILED);
-                // Final result might already be set by the failing step or a general message here
-                if (taskWithSteps.getFinalResult() == null || taskWithSteps.getFinalResult().isEmpty()) {
-                    taskWithSteps.setFinalResult("One or more steps failed during execution.");
+                savedTask.setStatus(TaskStatus.FAILED);
+                if (savedTask.getFinalResult() == null || savedTask.getFinalResult().isEmpty()) {
+                    savedTask.setFinalResult("One or more steps failed during execution.");
                 }
-                logger.warn("Task ID {} failed or partially completed due to step failures.", taskWithSteps.getId());
+                logger.warn("Task failed or partially completed.");
             }
-            taskWithSteps.setCompletedAt(LocalDateTime.now()); // Set completion time regardless of status
-            return taskRepository.save(taskWithSteps);
+            return taskRepository.save(savedTask);
 
         } catch (PlanningException e) {
-            logger.error("Planning failed for task ID {}: {}", savedTask.getId(), e.getMessage(), e);
+            logger.error("Planning failed: {}", e.getMessage(), e);
             savedTask.setStatus(TaskStatus.FAILED);
             savedTask.setFinalResult("Planning failed: " + e.getMessage());
-            savedTask.setCompletedAt(LocalDateTime.now());
             taskRepository.save(savedTask);
-            // Re-throw or handle as appropriate, perhaps with a custom runtime exception
+            // Re-throw as a runtime exception to ensure transaction rollback and GlobalExceptionHandler can catch it
             throw new RuntimeException("Task processing failed due to planning error for task ID " + savedTask.getId(), e);
-        } catch (Exception e) { // Catch-all for other unexpected errors during orchestration phase
-            logger.error("Unexpected error during task processing for ID {}: {}", savedTask.getId(), e.getMessage(), e);
+        } catch (Exception e) { // Catch broader exceptions that might occur outside defined ones
+            logger.error("Unexpected error during task processing: {}", e.getMessage(), e);
             savedTask.setStatus(TaskStatus.FAILED);
             savedTask.setFinalResult("Unexpected error during orchestration: " + e.getMessage());
-            savedTask.setCompletedAt(LocalDateTime.now());
             taskRepository.save(savedTask);
             throw new RuntimeException("Unexpected error during task orchestration for task ID " + savedTask.getId(), e);
+        } finally {
+            MDC.remove("taskId");
         }
     }
 
     private boolean executePlannedSteps(Task task) {
-        // Iterate over the steps associated with the task.
-        // These steps should be managed by the current JPA session.
+        // MDC is already set by processNewTask
+        boolean allSucceeded = true;
         for (Step step : task.getPlannedSteps()) {
-            // Double check if step was already processed (e.g. if resuming a task - future feature)
-            if (step.getStatus() == StepStatus.COMPLETED || step.getStatus() == StepStatus.FAILED) {
-                logger.info("Skipping already processed step ID {} with status {}", step.getId(), step.getStatus());
-                continue;
+            if (step.getStatus() == StepStatus.COMPLETED || step.getStatus() == StepStatus.SKIPPED) {
+                continue; // Skip already completed or skipped steps
             }
-
-            logger.info("Executing step ID {} (Task ID {}): '{}' using tool '{}'",
-                        step.getId(), task.getId(), step.getDescription(), step.getToolName());
             step.setStatus(StepStatus.IN_PROGRESS);
-            // Task is saved before loop and after each step, or at the end of the loop if all successful
-            // For now, saving task (and cascading to step) on each step status change
-            taskRepository.save(task);
+            step.setAttemptCount(step.getAttemptCount() + 1);
+            step.setUpdatedAt(LocalDateTime.now());
+            taskRepository.save(task); // Save step status update (via task cascade)
 
+            logger.info("Executing step ID {} ('{}', attempt {}) using tool '{}' with params: {}",
+                    step.getId(), step.getDescription(), step.getAttemptCount(), step.getToolName(), step.getParameters());
             try {
-                // Step.parameters is Map<String, String>. ToolExecutorService expects Map<String, Object>.
-                // This cast is a simplification.
-                @SuppressWarnings("unchecked")
-                Map<String, Object> toolParameters = (Map<String, Object>)(Map<?, ?>)step.getParameters();
+                ToolExecutionResult toolResult = toolExecutorService.executeTool(step.getToolName(), step.getParameters());
+                step.setResult(toolResult.getOutput() != null ? toolResult.getOutput().toString() : null);
+                step.setExecutedAt(LocalDateTime.now());
 
-                ToolExecutionResult toolResult = toolExecutorService.executeTool(step.getToolName(), toolParameters);
-
-                step.setResult(toolResult.getOutput() != null ? toolResult.getOutput().toString() : "No output.");
                 if ("SUCCESS".equals(toolResult.getStatus())) {
                     step.setStatus(StepStatus.COMPLETED);
-                    logger.info("Step ID {} completed successfully. Result excerpt: {}", step.getId(),
-                                step.getResult() != null ? step.getResult().substring(0, Math.min(step.getResult().length(), 100)) : "N/A");
+                    logger.info("Step ID {} completed successfully. Output: {}", step.getId(), summarized(step.getResult()));
                 } else {
+                    allSucceeded = false;
                     step.setStatus(StepStatus.FAILED);
-                    String errorMsg = "Error: " + toolResult.getError() +
-                                      (toolResult.getOutput() != null ? ". Output: " + toolResult.getOutput().toString() : "");
-                    step.setResult(errorMsg.substring(0, Math.min(errorMsg.length(), 4000))); // Truncate if too long for DB
-                    task.setFinalResult(errorMsg.substring(0, Math.min(errorMsg.length(), 4000))); // Set task's final result to the first error
-                    logger.warn("Step ID {} failed. Error: {}", step.getId(), step.getResult());
-                    taskRepository.save(task);
-                    return false; // Stop further execution if one step fails
+                    String errorMessage = toolResult.getError() != null ? toolResult.getError() : "No specific error message from tool.";
+                    step.setResult(String.format("Error: %s Output: %s", errorMessage, summarized(step.getResult())));
+                    logger.warn("Step ID {} failed. Error: '{}', Output: '{}'", step.getId(), errorMessage, summarized(step.getResult()));
+                    // If a step fails, we set the task's final result and stop further execution.
+                    task.setFinalResult(String.format("Step %d ('%s') failed: %s", step.getSequence(), step.getDescription(), errorMessage));
+                    break;
                 }
             } catch (ToolNotFoundException e) {
-                logger.error("ToolNotFoundException for step ID {}: {}", step.getId(), e.getMessage(), e);
+                allSucceeded = false;
                 step.setStatus(StepStatus.FAILED);
                 step.setResult("Tool not found: " + e.getMessage());
-                task.setFinalResult("Tool not found for step: " + step.getDescription());
-                taskRepository.save(task);
-                return false;
+                logger.error("ToolNotFoundException for step ID {}: {}", step.getId(), e.getMessage());
+                task.setFinalResult(String.format("Step %d ('%s') failed: Tool '%s' not found.", step.getSequence(), step.getDescription(), step.getToolName()));
+                break;
             } catch (ToolExecutionException e) {
-                logger.error("ToolExecutionException for step ID {}: {}", step.getId(), e.getMessage(), e);
+                allSucceeded = false;
                 step.setStatus(StepStatus.FAILED);
                 step.setResult("Tool execution error: " + e.getMessage());
-                 task.setFinalResult("Tool execution error for step: " + step.getDescription());
-                taskRepository.save(task);
-                return false;
-            } catch (Exception e) { // Catch any other unexpected error from tool execution
-                logger.error("Unexpected exception during execution of step ID {}: {}", step.getId(), e.getMessage(), e);
-                step.setStatus(StepStatus.FAILED);
-                step.setResult("Unexpected error during step execution: " + e.getMessage());
-                task.setFinalResult("Unexpected error during step: " + step.getDescription());
-                taskRepository.save(task);
-                return false;
+                logger.error("ToolExecutionException for step ID {}: {}", step.getId(), e.getMessage(), e);
+                task.setFinalResult(String.format("Step %d ('%s') failed: Tool execution error for '%s'.", step.getSequence(), step.getDescription(), step.getToolName()));
+                break;
+            } finally {
+                step.setUpdatedAt(LocalDateTime.now());
+                taskRepository.save(task); // Persist step changes (via task cascade)
             }
-            taskRepository.save(task); // Save successful/failed step completion (cascades to step)
         }
-        return true; // All steps succeeded
+        return allSucceeded;
+    }
+
+    private String summarized(String text) {
+        if (text == null) return null;
+        return text.length() > 100 ? text.substring(0, 97) + "..." : text;
+    }
+
+    // createTask and startTaskProcessing can be simplified or made private if processNewTask is the main entry point.
+    // For now, keeping them as per previous structure but with MDC.
+
+    @Override
+    @Transactional
+    public Task createTask(String objective) {
+        logger.info("Received request to create new task (simple) for objective: {}", objective);
+        Task task = new Task(objective); // Use constructor
+        task.setStatus(TaskStatus.PENDING);
+        // ID, CreatedAt, UpdatedAt are set by @PrePersist in Task entity if that's configured,
+        // otherwise set them manually:
+        task.setCreatedAt(LocalDateTime.now());
+        task.setUpdatedAt(LocalDateTime.now());
+        Task savedTask = taskRepository.save(task);
+
+        MDC.put("taskId", "task-" + savedTask.getId());
+        try {
+            logger.info("Simple task created and persisted with ID: {}", savedTask.getId());
+            return savedTask;
+        } finally {
+            MDC.remove("taskId");
+        }
     }
 
     @Override
     @Transactional(readOnly = true)
     public Task getTaskDetails(Long taskId) {
-        logger.debug("Fetching details for task ID: {}", taskId);
-        return taskRepository.findById(taskId)
-            .orElse(null);
+        MDC.put("taskId", "task-" + taskId);
+        try {
+            logger.debug("Fetching details for task.");
+            return taskRepository.findById(taskId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Task", taskId));
+        } finally {
+            MDC.remove("taskId");
+        }
+    }
+
+    @Override
+    @Transactional
+    public void startTaskProcessing(Long taskId) {
+        // This method's role is now significantly reduced if processNewTask handles the full flow.
+        // It might be used to re-start a FAILED task, or trigger a specific part of processing.
+        // For now, it just logs and sets to IN_PROGRESS if PENDING.
+        MDC.put("taskId", "task-" + taskId);
+        try {
+            logger.info("Attempting to start/resume processing for task.");
+            Task task = taskRepository.findById(taskId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Task", taskId));
+
+            if (task.getStatus() == TaskStatus.PENDING || task.getStatus() == TaskStatus.RETRY) {
+                task.setStatus(TaskStatus.IN_PROGRESS); // Or trigger planning/execution
+                task.setUpdatedAt(LocalDateTime.now());
+                taskRepository.save(task);
+                logger.info("Task status set to IN_PROGRESS. Full processing should be handled by processNewTask or a similar orchestrator method.");
+                // Potentially, you could call a re-planning or re-execution logic here.
+                // For example:
+                // if (task.getPlannedSteps().isEmpty()) {
+                //    List<Step> plannedSteps = plannerService.createPlan(task, task.getObjective());
+                //    task.getPlannedSteps().clear();
+                //    plannedSteps.forEach(task::addStep);
+                // }
+                // executePlannedSteps(task);
+                // ... update final status ...
+                // taskRepository.save(task);
+
+            } else {
+                logger.warn("Task is not in a PENDING or RETRY state (current: {}). No action taken by startTaskProcessing.", task.getStatus());
+            }
+        } finally {
+            MDC.remove("taskId");
+        }
     }
 }
