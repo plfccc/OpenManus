@@ -35,7 +35,7 @@ public class TaskController {
     public ResponseEntity<TaskResponseDTO> createTask(@Valid @RequestBody TaskRequestDTO taskRequestDTO) {
         logger.info("Received API request to create task: {}", taskRequestDTO.getDescription());
         try {
-            Task processedTask = taskOrchestrationService.processNewTask(taskRequestDTO);
+            Task processedTask = taskOrchestrationService.processNewTask(taskRequestDTO.getDescription());
             TaskResponseDTO response = mapTaskToTaskResponseDTO(processedTask);
 
             URI location = ServletUriComponentsBuilder

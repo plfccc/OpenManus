@@ -1,10 +1,9 @@
 package io.github.myuser.openmanusjava.core.service;
 
-import io.github.myuser.openmanusjava.api.dto.TaskRequestDTO;
 import io.github.myuser.openmanusjava.core.model.Task;
 
 public interface TaskOrchestrationService {
-    Task processNewTask(TaskRequestDTO request); // New primary method
+    Task processNewTask(String description); // New primary method
     Task getTaskDetails(Long taskId);
 
     // Existing methods can be kept for more granular control or internal use,

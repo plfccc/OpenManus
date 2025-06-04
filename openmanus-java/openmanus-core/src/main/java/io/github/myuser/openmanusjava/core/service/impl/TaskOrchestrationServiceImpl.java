@@ -1,7 +1,5 @@
 package io.github.myuser.openmanusjava.core.service.impl;
 
-
-import io.github.myuser.openmanusjava.api.dto.TaskRequestDTO;
 import io.github.myuser.openmanusjava.core.exception.PlanningException;
 import io.github.myuser.openmanusjava.core.exception.ResourceNotFoundException;
 import io.github.myuser.openmanusjava.core.model.Step;
@@ -17,7 +15,6 @@ import io.github.myuser.openmanusjava.tool.spec.ToolExecutionException;
 import io.github.myuser.openmanusjava.tool.spec.ToolExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.ArrayList;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -46,9 +43,9 @@ public class TaskOrchestrationServiceImpl implements TaskOrchestrationService {
 
     @Override
     @Transactional
-    public Task processNewTask(TaskRequestDTO request) {
-        logger.info("Processing new task request for description: {}", request.getDescription());
-        Task task = new Task(request.getDescription());
+    public Task processNewTask(String description) {
+        logger.info("Processing new task request for description: {}", description);
+        Task task = new Task(description);
         task.setStatus(TaskStatus.PENDING);
         task.setCreatedAt(LocalDateTime.now());
         task.setUpdatedAt(LocalDateTime.now());
@@ -60,7 +57,7 @@ public class TaskOrchestrationServiceImpl implements TaskOrchestrationService {
             savedTask.setStatus(TaskStatus.PLANNING);
             taskRepository.save(savedTask);
 
-            List<Step> plannedSteps = plannerService.createPlan(savedTask, request.getDescription());
+            List<Step> plannedSteps = plannerService.createPlan(savedTask, description);
             savedTask.getPlannedSteps().clear(); // Clear any existing (should be none for new task)
             for (Step step : plannedSteps) {
                 savedTask.addStep(step); // This should set the back-reference from step to task
@@ -135,7 +132,7 @@ public class TaskOrchestrationServiceImpl implements TaskOrchestrationService {
                     step.setResult(String.format("Error: %s Output: %s", errorMessage, summarized(step.getResult())));
                     logger.warn("Step ID {} failed. Error: '{}', Output: '{}'", step.getId(), errorMessage, summarized(step.getResult()));
                     // If a step fails, we set the task's final result and stop further execution.
-                    task.setFinalResult(String.format("Step %d ('%s') failed: %s", step.getSequence(), step.getDescription(), errorMessage));
+                    task.setFinalResult(String.format("Step %d ('%s') failed: %s", step.getSequenceOrder(), step.getDescription(), errorMessage));
                     break;
                 }
             } catch (ToolNotFoundException e) {
@@ -143,14 +140,14 @@ public class TaskOrchestrationServiceImpl implements TaskOrchestrationService {
                 step.setStatus(StepStatus.FAILED);
                 step.setResult("Tool not found: " + e.getMessage());
                 logger.error("ToolNotFoundException for step ID {}: {}", step.getId(), e.getMessage());
-                task.setFinalResult(String.format("Step %d ('%s') failed: Tool '%s' not found.", step.getSequence(), step.getDescription(), step.getToolName()));
+                task.setFinalResult(String.format("Step %d ('%s') failed: Tool '%s' not found.", step.getSequenceOrder(), step.getDescription(), step.getToolName()));
                 break;
             } catch (ToolExecutionException e) {
                 allSucceeded = false;
                 step.setStatus(StepStatus.FAILED);
                 step.setResult("Tool execution error: " + e.getMessage());
                 logger.error("ToolExecutionException for step ID {}: {}", step.getId(), e.getMessage(), e);
-                task.setFinalResult(String.format("Step %d ('%s') failed: Tool execution error for '%s'.", step.getSequence(), step.getDescription(), step.getToolName()));
+                task.setFinalResult(String.format("Step %d ('%s') failed: Tool execution error for '%s'.", step.getSequenceOrder(), step.getDescription(), step.getToolName()));
                 break;
             } finally {
                 step.setUpdatedAt(LocalDateTime.now());

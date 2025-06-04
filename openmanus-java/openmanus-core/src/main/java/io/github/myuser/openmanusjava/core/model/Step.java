@@ -38,6 +38,9 @@ public class Step {
 
     private int sequenceOrder;
 
+    private int attemptCount = 0;
+    private LocalDateTime executedAt;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -89,4 +92,9 @@ public class Step {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public int getAttemptCount() { return attemptCount; }
+    public void setAttemptCount(int attemptCount) { this.attemptCount = attemptCount; }
+    public LocalDateTime getExecutedAt() { return executedAt; }
+    public void setExecutedAt(LocalDateTime executedAt) { this.executedAt = executedAt; }
 }

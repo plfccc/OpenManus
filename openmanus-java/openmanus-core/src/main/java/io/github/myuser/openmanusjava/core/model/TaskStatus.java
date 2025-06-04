@@ -4,6 +4,7 @@ public enum TaskStatus {
     PENDING,      // Task received, awaiting planning
     PLANNING,     // Task plan is being generated
     EXECUTING,    // Task steps are being executed
+    RETRY,        // Task is being retried
     COMPLETED,    // Task finished successfully
     FAILED,       // Task failed during planning or execution
     CANCELED      // Task was canceled
