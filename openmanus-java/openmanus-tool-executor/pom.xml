@@ -32,6 +32,10 @@
             <artifactId>docker-java-transport-httpclient5</artifactId>
             <version>3.3.4</version> <!-- Use matching version -->
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
          <dependency> <!-- For @ConfigurationProperties -->
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>

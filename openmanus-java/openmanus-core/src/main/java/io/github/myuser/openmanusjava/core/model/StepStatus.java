@@ -4,5 +4,6 @@ public enum StepStatus {
     PENDING,      // Step is awaiting execution
     IN_PROGRESS,  // Step is currently executing
     COMPLETED,    // Step completed successfully
-    FAILED        // Step failed
+    FAILED,       // Step failed
+    SKIPPED       // Step was skipped
 }

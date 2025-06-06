@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap; // Added for parameter map conversion
 
 @Service
 public class TaskOrchestrationServiceImpl implements TaskOrchestrationService {
@@ -118,7 +119,9 @@ public class TaskOrchestrationServiceImpl implements TaskOrchestrationService {
             logger.info("Executing step ID {} ('{}', attempt {}) using tool '{}' with params: {}",
                     step.getId(), step.getDescription(), step.getAttemptCount(), step.getToolName(), step.getParameters());
             try {
-                ToolExecutionResult toolResult = toolExecutorService.executeTool(step.getToolName(), step.getParameters());
+                // Convert Map<String, String> to Map<String, Object> for ToolExecutorService
+                Map<String, Object> toolParameters = new HashMap<>(step.getParameters());
+                ToolExecutionResult toolResult = toolExecutorService.executeTool(step.getToolName(), toolParameters);
                 step.setResult(toolResult.getOutput() != null ? toolResult.getOutput().toString() : null);
                 step.setExecutedAt(LocalDateTime.now());
 

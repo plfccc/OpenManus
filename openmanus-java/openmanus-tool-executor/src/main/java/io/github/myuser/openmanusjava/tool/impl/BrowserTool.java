@@ -2,6 +2,7 @@ package io.github.myuser.openmanusjava.tool.impl;
 
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.LoadState;
+import com.microsoft.playwright.options.WaitUntilState;
 import io.github.myuser.openmanusjava.tool.config.ToolConfigProperties;
 import io.github.myuser.openmanusjava.tool.spec.Tool;
 import io.github.myuser.openmanusjava.tool.spec.ToolExecutionException;
@@ -128,7 +129,7 @@ public class BrowserTool implements Tool {
                 case ACTION_NAVIGATE:
                     String url = (String) parameters.get("url");
                     if (url == null) throw new ToolExecutionException("Missing 'url' for NAVIGATE action.");
-                    page.navigate(url, new Page.NavigateOptions().setWaitUntil(LoadState.NETWORKIDLE));
+                    page.navigate(url, new Page.NavigateOptions().setWaitUntil(WaitUntilState.NETWORKIDLE));
                     resultOutput = "Navigated to: " + url;
                     logMessage = "Navigated to: " + url;
                     break;
